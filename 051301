@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>간단한 룰렛 게임</title>
+  <style>
+    body { font-family: 'Malgun Gothic', sans-serif; text-align: center; }
+    .roulette { width: 300px; height: 300px; margin: 20px auto; position: relative; }
+    .arrow { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 0; height: 0; 
+      border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 20px solid red; z-index: 10; }
+    button { padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    input { padding: 8px; margin-bottom: 10px; width: 200px; }
+    .result { margin-top: 20px; padding: 10px; background: #fef9e7; border: 1px solid #f9e79f; border-radius: 5px; display: none; }
+  </style>
+</head>
+<body>
+  <h1>ESG-in 룰렛 게임</h1>
+  <h2>One Spin, One Surprise!</h2>
+  
+  <div class="roulette">
+    <canvas id="wheel" width="300" height="300"></canvas>
+    <div class="arrow"></div>
+  </div>
+  
+  <div>
+    <input type="text" id="name" placeholder="참가자 이름을 입력하세요">
+    <button id="spin">룰렛 돌리기</button>
+  </div>
+  
+  <div id="result" class="result">
+    <h3>결과: <span id="prize"></span></h3>
+    <p>축하합니다! <span id="winner"></span>님!</p>
+  </div>
+
+  <script>
+    // 룰렛 항목
+    const segments = [
+      { text: '200p', color: '#FF6384' },
+      { text: '꽝', color: '#36A2EB' },
+      { text: '100p', color: '#FFCE56' },
+      { text: '꽝', color: '#4BC0C0' },
+      { text: '50p', color: '#9966FF' },
+      { text: '꽝', color: '#FF9F40' }
+    ];
+    
+    let isSpinning = false;
+    let degree = 0;
+    const canvas = document.getElementById('wheel');
+    const ctx = canvas.getContext('2d');
+    
+    // 초기 룰렛 그리기
+    drawWheel();
+    
+    // 룰렛 그리기 함수
+    function drawWheel() {
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      const radius = canvas.width / 2 - 10;
+      
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      const arc = Math.PI * 2 / segments.length;
+      
+      for (let i = 0; i < segments.length; i++) {
+        const angle = degree + i * arc;
+        
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, angle, angle + arc);
+        ctx.lineTo(centerX, centerY);
+        ctx.fillStyle = segments[i].color;
+        ctx.fill();
+        ctx.stroke();
+        
+        ctx.save();
+        ctx.translate(
+          centerX + Math.cos(angle + arc / 2) * (radius * 0.7),
+          centerY + Math.sin(angle + arc / 2) * (radius * 0.7)
+        );
+        ctx.rotate(angle + arc / 2 + Math.PI / 2);
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 16px Arial';
+        ctx.fillText(segments[i].text, -ctx.measureText(segments[i].text).width / 2, 0);
+        ctx.restore();
+      }
+      
+      // 중앙 원
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius * 0.3, 0, Math.PI * 2);
+      ctx.fillStyle = '#f0f0f0';
+      ctx.fill();
+      ctx.stroke();
+      
+      ctx.fillStyle = 'black';
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 14px Arial';
+      ctx.fillText('ESG-in', centerX, centerY - 8);
+      ctx.font = '12px Arial';
+      ctx.fillText('EVENT', centerX, centerY + 10);
+    }
+    
+    // 회전 버튼 클릭 이벤트
+    document.getElementById('spin').addEventListener('click', function() {
+      const name = document.getElementById('name').value.trim();
+      
+      if (!name) {
+        alert('참가자 이름을 입력해주세요!');
+        return;
+      }
+      
+      if (isSpinning) return;
+      
+      document.getElementById('result').style.display = 'none';
+      
+      isSpinning = true;
+      this.textContent = '룰렛 돌아가는 중...';
+      this.disabled = true;
+      
+      const spinTime = Math.random() * 3000 + 5000; // 5-8초
+      const startTime = Date.now();
+      const startAngle = degree;
+      const spinAmount = Math.random() * 10 + 10; // 10-20바퀴
+      const endAngle = startAngle + (Math.PI * 2 * spinAmount);
+      
+      function animate() {
+        const now = Date.now();
+        const progress = Math.min((now - startTime) / spinTime, 1);
+        const easedProgress = 1 - Math.pow(1 - progress, 3); // easeOutCubic
+        
+        degree = startAngle + (endAngle - startAngle) * easedProgress;
+        drawWheel();
+        
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          finishSpin(name);
+        }
+      }
+      
+      requestAnimationFrame(animate);
+    });
+    
+    // 회전 종료 처리
+    function finishSpin(name) {
+      const arc = Math.PI * 2 / segments.length;
+      const normalizedDegree = ((degree % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+      const segmentIndex = Math.floor(segments.length - (normalizedDegree / arc) % segments.length) % segments.length;
+      
+      const prizeText = segments[segmentIndex].text;
+      
+      document.getElementById('prize').textContent = prizeText;
+      document.getElementById('winner').textContent = name;
+      document.getElementById('result').style.display = 'block';
+      
+      document.getElementById('spin').textContent = '룰렛 돌리기';
+      document.getElementById('spin').disabled = false;
+      document.getElementById('name').value = '';
+      
+      isSpinning = false;
+    }
+  </script>
+</body>
+</html>
